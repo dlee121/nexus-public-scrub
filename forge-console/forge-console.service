@@ -1,0 +1,60 @@
+[Unit]
+Description=Forge Console (operator UI for the Forge Temporal pipeline)
+After=network.target forge-secrets.service
+# Hard requirement: forge-secrets.service is the oneshot that populates
+# /run/forge-worker.env from AWS Secrets Manager. Without it the env file
+# is missing and ExecStart can't start anyway. Listing it as Requires=
+# means systemd will run forge-secrets.service before this unit and
+# refuse to start the console if the secrets fetch failed.
+Requires=forge-secrets.service
+# Soft order with the worker: console can run independently, but if both
+# are on the same host they read the same env file. forge-secrets.service
+# already orders that file's existence; this Wants= is just for ordering
+# convenience.
+Wants=forge-worker.service
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/nexus/core/forge-console
+
+# Non-secret runtime configuration. These were previously injected by
+# /usr/local/sbin/forge-worker-prestart from a single SM JSON blob
+# (`nexus/forge-worker`), which fought with forge-secrets.service for
+# control of /run/forge-worker.env. They live here as Environment=
+# directives because they are not secrets — putting them in SM costs
+# API calls and IAM scope without security benefit. The TLS_*_PATH pair
+# points at /opt/nexus/core/certs/ (the canonical mTLS material from
+# initial deploy); see forge-secrets-fetch.sh for the unused tmpfs cert
+# files written from /forge-worker/prod/TEMPORAL_TLS_{CERT,KEY}.
+Environment=TEMPORAL_NAMESPACE=[temporal-namespace]
+Environment=TEMPORAL_ADDRESS=[temporal-namespace].tmprl.cloud:7233
+Environment=AWS_REGION=us-west-2
+Environment=LINEAR_TEAM_ID=[linear-team-id]
+Environment=FORGE_CONSOLE_URL=http://127.0.0.1:4640
+Environment=TEMPORAL_TLS_CERT_PATH=/opt/nexus/core/certs/client.pem
+Environment=TEMPORAL_TLS_KEY_PATH=/opt/nexus/core/certs/client.key
+
+# Secret material from AWS Secrets Manager via forge-secrets.service.
+# EnvironmentFile= comes AFTER Environment= so unit-level config wins
+# only over keys not in the file; SM-sourced secrets in the file are
+# authoritative. forge-secrets-fetch.sh deliberately does not emit the
+# TEMPORAL_TLS_*_PATH keys into this file, leaving the unit-level
+# Environment= directives above as the sole source of truth for those.
+EnvironmentFile=/run/forge-worker.env
+
+# Bun is expected at the operator's PATH; pin if/when the deploy image moves.
+ExecStart=/home/ubuntu/.bun/bin/bun run src/server.ts
+Restart=on-failure
+RestartSec=5s
+StandardOutput=journal
+StandardError=journal
+
+# Localhost-bound by default; rely on systemd + sshd for access. If exposing
+# beyond localhost is ever wanted, set FORGE_CONSOLE_HOST=0.0.0.0 in
+# the unit AND ensure the EC2 security group restricts the port.
+Environment=FORGE_CONSOLE_HOST=127.0.0.1
+Environment=FORGE_CONSOLE_PORT=4640
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,16 @@
+[Unit]
+Description=Periodic refresh of Claude Code OAuth credentials
+Documentation=https://github.com/[org]/Nexus
+
+[Timer]
+# Fire 1 min after boot so a reboot during a refresh window catches up.
+OnBootSec=1min
+# Then every 30 min on the half-hour. Each run is a no-op if >4h life
+# remains on the access token, so polling is cheap.
+OnCalendar=*:0/30
+# Catch up missed firings (e.g., if instance was down).
+Persistent=true
+Unit=claude-creds-refresh.service
+
+[Install]
+WantedBy=timers.target

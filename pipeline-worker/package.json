@@ -1,0 +1,39 @@
+{
+  "name": "pipeline-worker",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "spike": "bun run src/spike.ts",
+    "smoke": "bun run src/smoke/run-all.ts",
+    "test": "bun test src/tests/",
+    "worker": "node dist/worker.js",
+    "start": "node dist/worker.js",
+    "dev": "ts-node src/worker.ts",
+    "build": "tsc",
+    "e2e": "node dist/cli/e2e-probe.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-codeartifact": "^3.0.0",
+    "@aws-sdk/client-elastic-beanstalk": "^3.1035.0",
+    "@aws-sdk/client-secrets-manager": "^3.0.0",
+    "@clickhouse/client": "^1.18.3",
+    "@linear/sdk": "^82.1.0",
+    "@octokit/graphql": "^9.0.3",
+    "@octokit/rest": "^21.0.0",
+    "@temporalio/activity": "^1.11.0",
+    "@temporalio/client": "^1.11.0",
+    "@temporalio/worker": "^1.11.0",
+    "@temporalio/workflow": "^1.11.0",
+    "dotenv": "^16.0.0",
+    "openai": "^4.0.0",
+    "winston": "^3.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.0.0"
+  },
+  "trustedDependencies": [
+    "@swc/core",
+    "protobufjs"
+  ]
+}

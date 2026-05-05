@@ -1,0 +1,41 @@
+{
+  "model": "claude-sonnet-4-6",
+  "api": "",
+  "fallback": {
+    "model": "",
+    "api": ""
+  },
+  "timezone": "UTC",
+  "timezoneOffsetMinutes": 0,
+  "heartbeat": {
+    "enabled": false,
+    "interval": 15,
+    "prompt": "",
+    "excludeWindows": []
+  },
+  "telegram": {
+    "token": "",
+    "allowedUserIds": []
+  },
+  "slack": {
+    "token": "***REMOVED***",
+    "channelId": "[slack-id]",
+    "allowedUserIds": ["UDCR232BH"]
+  },
+  "security": {
+    "level": "moderate",
+    "allowedTools": [],
+    "disallowedTools": []
+  },
+  "web": {
+    "enabled": true,
+    "host": "127.0.0.1",
+    "port": 4632
+  },
+  "stt": {
+    "baseUrl": "",
+    "model": ""
+  },
+  "promptsDir": "",
+  "bootstrapPrompt": ""
+}

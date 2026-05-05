@@ -1,0 +1,38 @@
+FROM node:20-bookworm-slim
+
+# System dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    make \
+    curl \
+    wget \
+    build-essential \
+    python3 \
+    python3-pip \
+  && rm -rf /var/lib/apt/lists/*
+
+# Install uv (Python package manager, used by verify step)
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:${PATH}"
+
+# Install Claude Code CLI (provides the `claude` binary)
+RUN npm install -g @anthropic-ai/claude-code
+
+# Set working directory
+WORKDIR /app
+
+# Install Node.js production dependencies for the pipeline worker
+COPY pipeline-worker/package.json pipeline-worker/package-lock.json ./pipeline-worker/
+RUN cd /app/pipeline-worker && npm ci --omit=dev
+
+# Copy compiled worker dist
+COPY pipeline-worker/dist/ ./pipeline-worker/dist/
+
+# Create directories used at runtime
+RUN mkdir -p /opt/nexus/repos /tmp/forge-worktrees
+
+# Environment defaults (can be overridden at runtime)
+ENV NEXUS_CORE_PATH=/app
+ENV FORGE_WORKTREE_BASE=/tmp/forge-worktrees
+
+CMD ["node", "/app/pipeline-worker/dist/worker.js"]

@@ -1,0 +1,14 @@
+# Build output
+dist/
+
+# Dependencies
+node_modules/
+
+# Runtime logs
+logs/
+
+# Bun runtime caches (kept distinct from npm node_modules above)
+.bun/
+
+# OS noise
+.DS_Store

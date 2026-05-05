@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "slack": {
+  	"command": "npx",
+  	"args": ["-y", "@modelcontextprotocol/server-slack"],
+  	"env": {
+    	"SLACK_BOT_TOKEN": 	"${SLACK_BOT_TOKEN}",
+    	"SLACK_TEAM_ID": "TDCKWTQR5"
+  	},
+  	"description": "Slack MCP - read/write messages. GUARDRAIL: write only to DMs with dlee121dk (UDCR232BH) or #nexus channel. Never post to other channels or DM other users."
+    }
+  }
+}

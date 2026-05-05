@@ -1,0 +1,1029 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Forge Console</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b0d10;
+      --panel: #14181d;
+      --panel-border: #232a31;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+      --approve: #238636;
+      --approve-hover: #2ea043;
+      --danger: #da3633;
+      --danger-hover: #f85149;
+      --needs: #d29922;
+      --running: #58a6ff;
+      --done: #3fb950;
+      --failed: #f85149;
+      --code-bg: #0b0d10;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 24px;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 600;
+    }
+    #last-refresh {
+      color: var(--muted);
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+    }
+    .sections {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 24px;
+    }
+    section {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 8px;
+      padding: 16px;
+    }
+    section h2 {
+      margin: 0 0 12px 0;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+    }
+    section.needs-approval h2 { color: var(--needs); }
+    section.running h2 { color: var(--running); }
+    section.done h2 { color: var(--done); }
+    section.failed h2 { color: var(--failed); }
+    section.failed { border-color: rgba(248, 81, 73, 0.35); }
+    section.failed .card { border-color: rgba(248, 81, 73, 0.20); }
+    section.failed .card .state { color: var(--failed); background: rgba(248, 81, 73, 0.10); }
+    section.done .card .state { color: var(--done); background: rgba(63, 185, 80, 0.10); }
+    .card {
+      background: #0e1217;
+      border: 1px solid var(--panel-border);
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: border-color 120ms ease;
+    }
+    .card:last-child { margin-bottom: 0; }
+    .card:hover { border-color: var(--accent); }
+    .card .headline {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      word-break: break-all;
+    }
+    .card .headline .ticket-id-pill {
+      color: var(--accent);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    .card .wid {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 11px;
+      color: var(--muted);
+      word-break: break-all;
+      margin-top: 2px;
+    }
+    .card .meta {
+      margin-top: 4px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .card .state {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      background: #1f2933;
+      color: var(--accent);
+      margin-top: 6px;
+    }
+    /* Children of a multiTicketWorkflow render under the parent inside a
+       sub-tree container with a left rail. Tighter padding than the parent
+       to visually de-emphasize without hiding. */
+    .card-children {
+      margin-left: 18px;
+      margin-top: 8px;
+      padding-left: 12px;
+      border-left: 2px solid var(--panel-border);
+    }
+    .card.child {
+      padding: 9px 11px;
+      font-size: 12px;
+    }
+    .card.child .headline { font-size: 12px; }
+    .card .attrib {
+      display: block;
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 6px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    /* Transcript-export anchor styled as a small secondary button. Placed
+       inline with the state pill so the card stays one row of metadata. */
+    .card .transcript-btn {
+      display: inline-block;
+      margin-top: 6px;
+      margin-left: 8px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-decoration: none;
+      background: #21262d;
+      color: var(--muted);
+      transition: color 120ms ease, background 120ms ease;
+    }
+    .card .transcript-btn:hover {
+      color: var(--accent);
+      background: #2a3036;
+    }
+    .empty {
+      color: var(--muted);
+      font-size: 12px;
+      font-style: italic;
+    }
+    .error {
+      background: #5a1d1d;
+      border: 1px solid var(--danger);
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 16px;
+      font-size: 13px;
+      color: #fdd;
+    }
+    .error.hidden { display: none; }
+
+    dialog {
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid var(--panel-border);
+      border-radius: 8px;
+      padding: 24px;
+      max-width: 720px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
+    dialog h3 {
+      margin: 0 0 4px 0;
+      font-size: 16px;
+    }
+    dialog .modal-wid {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 16px;
+      word-break: break-all;
+    }
+    dialog .plan-instr {
+      background: var(--code-bg);
+      border-left: 3px solid var(--accent);
+      padding: 12px 16px;
+      border-radius: 4px;
+      font-size: 13px;
+      white-space: pre-wrap;
+      margin-bottom: 16px;
+    }
+    dialog .wave {
+      margin-bottom: 12px;
+      padding: 12px;
+      background: var(--code-bg);
+      border-radius: 4px;
+    }
+    dialog .wave-header {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    dialog .ticket {
+      padding: 8px 0;
+      border-bottom: 1px solid var(--panel-border);
+    }
+    dialog .ticket:last-child { border-bottom: none; }
+    dialog .ticket-id {
+      font-family: ui-monospace, monospace;
+      font-size: 11px;
+      color: var(--accent);
+    }
+    dialog .ticket-title {
+      font-weight: 600;
+      margin-top: 2px;
+    }
+    dialog .ticket-desc {
+      font-size: 13px;
+      color: #c9d1d9;
+      margin-top: 4px;
+      white-space: pre-wrap;
+    }
+    dialog .ticket-criteria {
+      margin-top: 6px;
+      padding-left: 16px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    dialog .ticket-criteria li { margin-bottom: 2px; }
+    dialog .plan-error {
+      background: #2a1a1a;
+      border: 1px solid #5a1d1d;
+      border-radius: 4px;
+      padding: 10px 12px;
+      font-size: 12px;
+      color: #fbb;
+    }
+    dialog .actions {
+      margin-top: 16px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    /* Stream pane (v2) */
+    .stream-pane {
+      margin-top: 18px;
+      border-top: 1px solid var(--panel-border);
+      padding-top: 14px;
+    }
+    .stream-pane.hidden { display: none; }
+    .stream-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .stream-header h4 {
+      margin: 0;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+    }
+    .stream-status {
+      font-size: 10px;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+    .stream-status .dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      margin-right: 4px;
+      vertical-align: middle;
+      background: var(--muted);
+    }
+    .stream-status.live .dot { background: var(--running); animation: pulse 2s ease-in-out infinite; }
+    .stream-status.paused .dot { background: var(--needs); }
+    .stream-status.disconnected .dot { background: var(--danger); }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+    .stream-controls {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .stream-controls button {
+      font-size: 11px;
+      padding: 4px 10px;
+      background: #30363d;
+    }
+    .stream-controls button:hover:not(:disabled) { background: #3a4049; }
+    .stream-controls button.active { background: var(--accent); color: #0b0d10; }
+    .stream-events {
+      background: var(--code-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 4px;
+      padding: 8px 10px;
+      max-height: 380px;
+      overflow-y: auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+    .stream-event {
+      padding: 3px 0;
+      border-bottom: 1px dotted #1a1f25;
+      word-break: break-word;
+    }
+    .stream-event:last-child { border-bottom: none; }
+    .stream-event .ts {
+      color: var(--muted);
+      margin-right: 6px;
+      font-size: 10px;
+    }
+    .stream-event .kind {
+      display: inline-block;
+      min-width: 60px;
+      font-weight: 600;
+      margin-right: 8px;
+    }
+    .stream-event.kind-assistant .kind { color: #79c0ff; }
+    .stream-event.kind-user .kind { color: #ffa657; }
+    .stream-event.kind-system .kind { color: var(--muted); }
+    .stream-event.kind-error .kind, .stream-event.kind-stderr .kind { color: var(--danger); }
+    .stream-event.kind-tool_use { padding-left: 12px; border-left: 2px solid #58a6ff; padding-top: 2px; padding-bottom: 2px; }
+    .stream-event.kind-tool_result { padding-left: 24px; color: var(--muted); }
+    .stream-event .body { color: #c9d1d9; white-space: pre-wrap; }
+    .stream-event .tool-name { color: #d29922; font-weight: 600; }
+    .stream-event .tool-input { color: #8b949e; }
+    .stream-empty {
+      padding: 20px 0;
+      color: var(--muted);
+      font-style: italic;
+      text-align: center;
+      font-family: -apple-system, sans-serif;
+      font-size: 12px;
+    }
+    button {
+      font-family: inherit;
+      font-size: 13px;
+      padding: 8px 14px;
+      border-radius: 4px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      color: #fff;
+    }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    button.approve { background: var(--approve); }
+    button.approve:hover:not(:disabled) { background: var(--approve-hover); }
+    button.danger { background: var(--danger); }
+    button.danger:hover:not(:disabled) { background: var(--danger-hover); }
+    button.neutral { background: #30363d; }
+    button.neutral:hover:not(:disabled) { background: #3a4049; }
+
+    .spinner {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 2px solid var(--muted);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 600ms linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🔥 Forge Console</h1>
+    <span id="last-refresh">Loading…</span>
+  </header>
+
+  <div id="error" class="error hidden"></div>
+
+  <div class="sections">
+    <section class="needs-approval">
+      <h2>Pending — awaiting human gate</h2>
+      <div id="needsApproval"></div>
+    </section>
+    <section class="running">
+      <h2>In progress</h2>
+      <div id="running"></div>
+    </section>
+    <section class="done">
+      <h2>Completed</h2>
+      <div id="done"></div>
+    </section>
+    <section class="failed">
+      <h2>Failed</h2>
+      <div id="failed"></div>
+    </section>
+  </div>
+
+  <dialog id="detail-modal">
+    <h3 id="modal-title">Workflow detail</h3>
+    <div id="modal-wid" class="modal-wid"></div>
+    <div id="modal-body"></div>
+    <div class="actions">
+      <button id="approve-btn" class="approve">Approve plan</button>
+      <button id="prod-approve-btn" class="approve">Approve prod deploy</button>
+      <button id="prod-reject-btn" class="neutral">Skip prod (dev only)</button>
+      <button id="reject-btn" class="danger">Reject (cancel)</button>
+      <button id="close-btn" class="neutral">Close</button>
+    </div>
+    <div id="stream-pane" class="stream-pane hidden">
+      <div class="stream-header">
+        <h4>Live event stream</h4>
+        <span id="stream-status" class="stream-status disconnected"><span class="dot"></span><span id="stream-status-text">disconnected</span></span>
+      </div>
+      <div class="stream-controls">
+        <button id="stream-pause-btn" type="button">Pause auto-scroll</button>
+        <button id="stream-clear-btn" type="button">Clear</button>
+      </div>
+      <div id="stream-events" class="stream-events"></div>
+    </div>
+  </dialog>
+
+  <script>
+    const errEl = document.getElementById('error');
+    const lastRefreshEl = document.getElementById('last-refresh');
+    const modal = document.getElementById('detail-modal');
+    const modalTitle = document.getElementById('modal-title');
+    const modalWid = document.getElementById('modal-wid');
+    const modalBody = document.getElementById('modal-body');
+    const approveBtn = document.getElementById('approve-btn');
+    const prodApproveBtn = document.getElementById('prod-approve-btn');
+    const prodRejectBtn = document.getElementById('prod-reject-btn');
+    const rejectBtn = document.getElementById('reject-btn');
+    const closeBtn = document.getElementById('close-btn');
+
+    let currentWorkflowId = null;
+
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function showError(msg) {
+      errEl.textContent = msg;
+      errEl.classList.remove('hidden');
+    }
+    function clearError() {
+      errEl.classList.add('hidden');
+    }
+
+    function fmtAge(iso) {
+      if (!iso) return '';
+      const ms = Date.now() - new Date(iso).getTime();
+      const s = Math.floor(ms / 1000);
+      if (s < 60) return s + 's ago';
+      const m = Math.floor(s / 60);
+      if (m < 60) return m + 'm ago';
+      const h = Math.floor(m / 60);
+      if (h < 24) return h + 'h ago';
+      return Math.floor(h / 24) + 'd ago';
+    }
+
+    /**
+     * Compact local-time label for parent cards: "Apr 30 19:32".
+     * startTime is the canonical source (workflow IDs encode a millisecond
+     * epoch but startTime is more accurate when the start was deferred).
+     */
+    function fmtShortDate(iso) {
+      if (!iso) return '';
+      try {
+        return new Date(iso).toLocaleString(undefined, {
+          month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+        });
+      } catch (_) { return ''; }
+    }
+
+    /** Buckets where a transcript export is meaningful (workflow has ended). */
+    const TRANSCRIPT_BUCKETS = new Set(['done', 'failed']);
+
+    /**
+     * Extract the descriptive slug encoded in a workflow ID.
+     *
+     * Patterns we know about:
+     *   parent  current  forge-<slug>-<ts>          → returns slug
+     *   parent  legacy   forge-<ts>                 → returns null
+     *   child   current  pipeline-<slug>-<ts>-<idx> → returns slug
+     *   child   interim  pipeline-<slug>-<ts>       → returns slug
+     *   child   legacy   pipeline-<ticketId>        → returns null
+     *
+     * The legacy patterns return null on purpose: callers fall back to
+     * the existing label (date for parent, ticket id for child).
+     */
+    function deriveSlug(workflowId, type) {
+      if (type === 'multiTicketWorkflow') {
+        const m = workflowId.match(/^forge-(.+?)-(\d{10,})$/);
+        return m ? m[1] : null;
+      }
+      if (type === 'pipelineWorkflow') {
+        let m = workflowId.match(/^pipeline-(.+?)-(\d{10,})-\d+$/);
+        if (m) return m[1];
+        m = workflowId.match(/^pipeline-(.+?)-(\d{10,})$/);
+        if (m) return m[1];
+        return null;
+      }
+      return null;
+    }
+
+    /** "fix-login-flicker" → "Fix login flicker". */
+    function prettifySlug(slug) {
+      if (!slug) return '';
+      const spaced = slug.replace(/-/g, ' ');
+      return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+    }
+
+    /** Headline text per workflow type — friendlier than the raw workflow ID. */
+    function renderHeadline(card) {
+      const slug = deriveSlug(card.workflowId, card.workflowType);
+      if (card.workflowType === 'pipelineWorkflow') {
+        if (slug) return escapeHtml(prettifySlug(slug));
+        // Legacy pipeline-<ticketId> — accent-colored ticket id label.
+        const tid = escapeHtml(card.ticketId || card.workflowId);
+        return '<span class="ticket-id-pill">' + tid + '</span>';
+      }
+      if (card.workflowType === 'multiTicketWorkflow') {
+        const date = fmtShortDate(card.startTime);
+        if (slug) {
+          // Descriptive slug carries the instruction; date is secondary.
+          return escapeHtml(prettifySlug(slug)) + (date ? ' <span style="color:var(--muted);font-weight:400;font-size:11px;">· ' + escapeHtml(date) + '</span>' : '');
+        }
+        return 'Forge run' + (date ? ' · ' + escapeHtml(date) : '');
+      }
+      // Fallback for unrecognized types (patrol, deploy-coordinator).
+      return escapeHtml(card.workflowType || 'workflow');
+    }
+
+    /**
+     * @param card    — workflow summary
+     * @param opts.bucket           — bucket id (controls transcript button visibility)
+     * @param opts.asChild          — render with the tighter child styling
+     * @param opts.attribParentId   — when set, render an attribution line ("↳ <parentId>");
+     *                                used for orphan children whose parent lives in
+     *                                another bucket
+     * @param opts.childCount       — when set, append "(N children)" subtext (parent cards)
+     */
+    function renderCard(card, opts) {
+      opts = opts || {};
+      const age = card.startTime ? ' · ' + escapeHtml(fmtAge(card.startTime)) : '';
+      const cls = 'card' + (opts.asChild ? ' child' : '');
+      const childTag = typeof opts.childCount === 'number' && opts.childCount > 0
+        ? ' · ' + opts.childCount + ' ticket' + (opts.childCount === 1 ? '' : 's')
+        : '';
+      const attrib = opts.attribParentId
+        ? '<span class="attrib">↳ orphan of ' + escapeHtml(opts.attribParentId) + '</span>'
+        : '';
+      // Transcript export — pipelineWorkflow children always; multiTicketWorkflow
+      // parents get the aggregate endpoint. Both gated to terminal buckets where
+      // the export is meaningful.
+      let transcriptBtn = '';
+      if (TRANSCRIPT_BUCKETS.has(opts.bucket)) {
+        if (card.workflowType === 'pipelineWorkflow') {
+          transcriptBtn =
+            '<a class="transcript-btn" href="/api/workflows/'
+            + encodeURIComponent(card.workflowId) + '/transcript" download '
+            + 'data-no-modal="1">Export transcript</a>';
+        } else if (card.workflowType === 'multiTicketWorkflow') {
+          transcriptBtn =
+            '<a class="transcript-btn" href="/api/workflows/'
+            + encodeURIComponent(card.workflowId) + '/transcripts-all" download '
+            + 'data-no-modal="1">Export all transcripts</a>';
+        }
+      }
+      return (
+        '<div class="' + cls + '" data-wid="' + escapeHtml(card.workflowId) + '">' +
+          '<div class="headline">' + renderHeadline(card) + '</div>' +
+          '<div class="wid">' + escapeHtml(card.workflowId) + '</div>' +
+          '<div class="meta">' + escapeHtml(card.workflowType) + age + childTag + '</div>' +
+          '<span class="state">' + escapeHtml(card.state) + '</span>' +
+          transcriptBtn +
+          attrib +
+        '</div>'
+      );
+    }
+
+    /**
+     * Group a bucket's flat workflow list into parent-child trees.
+     *
+     * Returns an ordered list of render groups:
+     *   - { kind: 'parent',     parent, children }   parent + its in-bucket kids
+     *   - { kind: 'standalone', card }               pipelineWorkflow with no parent
+     *   - { kind: 'orphan',     card, parentId }     pipelineWorkflow whose parent
+     *                                                 lives in a different bucket
+     *
+     * Render order preserves the bucket's original ordering: groups sort by the
+     * earliest workflow inside them (parent's startTime, or the orphan/standalone
+     * card itself).
+     */
+    function groupCards(items, allParentsById) {
+      if (!items || items.length === 0) return [];
+      const inBucketParents = new Map();         // workflowId → parent card
+      for (const c of items) {
+        if (c.workflowType === 'multiTicketWorkflow') inBucketParents.set(c.workflowId, c);
+      }
+      const childrenByParent = new Map();        // parentId → child cards (in this bucket)
+      const groups = [];
+      for (const c of items) {
+        if (c.workflowType === 'multiTicketWorkflow') {
+          if (!groups.find((g) => g.kind === 'parent' && g.parent.workflowId === c.workflowId)) {
+            groups.push({ kind: 'parent', parent: c, children: [] });
+          }
+          continue;
+        }
+        if (c.workflowType !== 'pipelineWorkflow') {
+          // patrol / deploy-coordinator / future types — render flat.
+          groups.push({ kind: 'standalone', card: c });
+          continue;
+        }
+        const pid = c.parentWorkflowId || null;
+        if (pid && inBucketParents.has(pid)) {
+          // Child in same bucket as parent — nest it.
+          let arr = childrenByParent.get(pid);
+          if (!arr) { arr = []; childrenByParent.set(pid, arr); }
+          arr.push(c);
+        } else if (pid && allParentsById.has(pid)) {
+          // Parent exists but in a different bucket — orphan with attribution.
+          groups.push({ kind: 'orphan', card: c, parentId: pid });
+        } else {
+          // No parent linkage at all — top-level pipeline.
+          groups.push({ kind: 'standalone', card: c });
+        }
+      }
+      // Attach nested children to their parent groups.
+      for (const g of groups) {
+        if (g.kind === 'parent') {
+          g.children = childrenByParent.get(g.parent.workflowId) || [];
+        }
+      }
+      return groups;
+    }
+
+    function renderBucket(id, items, allParentsById) {
+      const el = document.getElementById(id);
+      if (!items || items.length === 0) {
+        el.innerHTML = '<div class="empty">None</div>';
+        return;
+      }
+      const groups = groupCards(items, allParentsById);
+      const parts = [];
+      for (const g of groups) {
+        if (g.kind === 'parent') {
+          parts.push(renderCard(g.parent, { bucket: id, childCount: g.children.length }));
+          if (g.children.length > 0) {
+            parts.push('<div class="card-children">');
+            for (const child of g.children) {
+              parts.push(renderCard(child, { bucket: id, asChild: true }));
+            }
+            parts.push('</div>');
+          }
+        } else if (g.kind === 'orphan') {
+          parts.push(renderCard(g.card, { bucket: id, attribParentId: g.parentId }));
+        } else {
+          parts.push(renderCard(g.card, { bucket: id }));
+        }
+      }
+      el.innerHTML = parts.join('');
+    }
+
+    async function refresh() {
+      try {
+        const res = await fetch('/api/workflows');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        // Build a global parents-by-id index so each bucket's grouping
+        // pass can detect cross-bucket parent linkage (a child's parent
+        // may sit in a different bucket — e.g. parent still PLAN_REVIEW
+        // in needsApproval, child already DONE in done).
+        const allParentsById = new Map();
+        for (const bucket of [data.needsApproval, data.running, data.done, data.failed]) {
+          for (const c of (bucket || [])) {
+            if (c.workflowType === 'multiTicketWorkflow') {
+              allParentsById.set(c.workflowId, c);
+            }
+          }
+        }
+        renderBucket('needsApproval', data.needsApproval, allParentsById);
+        renderBucket('running', data.running, allParentsById);
+        renderBucket('done', data.done, allParentsById);
+        renderBucket('failed', data.failed || [], allParentsById);
+        clearError();
+        lastRefreshEl.textContent = 'Last refresh: ' + new Date().toLocaleTimeString();
+      } catch (e) {
+        showError('Failed to load workflows: ' + (e && e.message ? e.message : e));
+      }
+    }
+
+    function renderPrCard(pr) {
+      if (!pr) return '';
+      const stateColor = pr.state === 'merged' ? 'var(--done)' : pr.state === 'closed' ? 'var(--muted)' : 'var(--accent)';
+      const stateLabel = pr.state.toUpperCase();
+      return [
+        '<div class="pr-card" style="background:var(--code-bg);border:1px solid var(--panel-border);border-left:3px solid ' + stateColor + ';border-radius:4px;padding:10px 12px;margin-bottom:12px;">',
+        '<div style="font-size:10px;font-weight:600;color:' + stateColor + ';letter-spacing:0.05em;text-transform:uppercase;">PR · ' + escapeHtml(stateLabel) + '</div>',
+        '<div style="font-weight:600;margin-top:4px;">' + escapeHtml(pr.prTitle) + '</div>',
+        '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' + escapeHtml(pr.repoFullName) + ' #' + escapeHtml(String(pr.prNumber)) + '</div>',
+        '<a href="' + escapeHtml(pr.prUrl) + '" target="_blank" rel="noopener" style="display:inline-block;margin-top:6px;font-size:12px;color:var(--accent);text-decoration:none;">' + escapeHtml(pr.prUrl) + ' ↗</a>',
+        '</div>',
+      ].join('');
+    }
+
+    function renderPlan(detail) {
+      const parts = [];
+      if (detail.errorMessage) {
+        parts.push('<div class="plan-error" style="margin-bottom:12px;"><strong>Error:</strong><br>' + escapeHtml(detail.errorMessage) + '</div>');
+      }
+      parts.push(renderPrCard(detail.pr));
+      if (detail.plan) {
+        parts.push('<div class="plan-instr">' + escapeHtml(detail.plan.instruction) + '</div>');
+        for (const wave of detail.plan.waves) {
+          parts.push('<div class="wave">');
+          parts.push('<div class="wave-header">Wave ' + escapeHtml(wave.wave) + ' — ' + wave.tickets.length + ' ticket(s)</div>');
+          for (const t of wave.tickets) {
+            parts.push('<div class="ticket">');
+            parts.push('<div class="ticket-id">' + escapeHtml(t.id) + '</div>');
+            parts.push('<div class="ticket-title">' + escapeHtml(t.title) + '</div>');
+            parts.push('<div class="ticket-desc">' + escapeHtml(t.description) + '</div>');
+            if (t.acceptanceCriteria && t.acceptanceCriteria.length > 0) {
+              parts.push('<ul class="ticket-criteria">');
+              for (const ac of t.acceptanceCriteria) {
+                parts.push('<li>' + escapeHtml(ac) + '</li>');
+              }
+              parts.push('</ul>');
+            }
+            parts.push('</div>');
+          }
+          parts.push('</div>');
+        }
+      } else if (detail.planFetchError) {
+        parts.push('<div class="plan-error">' + escapeHtml(detail.planFetchError) + '</div>');
+      }
+      if (detail.childWorkflowIds && detail.childWorkflowIds.length > 0) {
+        parts.push('<div class="wave-header" style="margin-top:16px;">Child workflows (' + detail.childWorkflowIds.length + ')</div>');
+        parts.push('<div style="font-family:ui-monospace,monospace;font-size:11px;color:var(--muted);">');
+        parts.push(detail.childWorkflowIds.map(escapeHtml).join('<br>'));
+        parts.push('</div>');
+      }
+      return parts.join('');
+    }
+
+    const TERMINAL_STATES = new Set(['COMPLETED', 'FAILED', 'CANCELLED', 'TERMINATED', 'TIMED_OUT']);
+
+    async function openWorkflow(workflowId) {
+      currentWorkflowId = workflowId;
+      modalTitle.textContent = '⏳ Loading…';
+      modalWid.textContent = workflowId;
+      modalBody.innerHTML = '<span class="spinner"></span>';
+      modal.showModal();
+      let detail = null;
+      try {
+        const res = await fetch('/api/workflows/' + encodeURIComponent(workflowId));
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        detail = await res.json();
+        modalTitle.textContent = (detail.workflowType || 'workflow') + ' · ' + (detail.state || 'unknown');
+        modalBody.innerHTML = renderPlan(detail);
+
+        // Plan-approve: only enabled for multiTicketWorkflow at a plan gate.
+        const canApprovePlan = detail.workflowType === 'multiTicketWorkflow'
+          && (detail.state === 'PLAN_REVIEW' || detail.state === 'PLANNING' || detail.state === 'APPROVAL_WAIT');
+        approveBtn.disabled = !canApprovePlan;
+        approveBtn.style.display = canApprovePlan ? '' : 'none';
+
+        // Prod-approve / prod-skip: only when pipelineWorkflow at PROD_DEPLOY_GATE.
+        const canApproveProd = detail.workflowType === 'pipelineWorkflow'
+          && detail.state === 'PROD_DEPLOY_GATE';
+        prodApproveBtn.disabled = !canApproveProd;
+        prodApproveBtn.style.display = canApproveProd ? '' : 'none';
+        prodRejectBtn.disabled = !canApproveProd;
+        prodRejectBtn.style.display = canApproveProd ? '' : 'none';
+      } catch (e) {
+        modalBody.innerHTML = '<div class="plan-error">Failed to load: ' + escapeHtml(e.message || e) + '</div>';
+      }
+
+      // v2 stream pane — always open. Status reflects live tail vs replay-only
+      // for terminal workflows. Reuses the detail fetched above (no second
+      // round-trip; the previous monkey-patch did a duplicate /api/workflows
+      // call on every modal open).
+      openStreamFor(workflowId, true);
+      if (detail && TERMINAL_STATES.has(detail.state)) {
+        setStreamStatus('disconnected', 'workflow ended (replay only)');
+      }
+    }
+
+    async function performAction(action) {
+      if (!currentWorkflowId) return;
+      const wid = currentWorkflowId;
+      const btn =
+        action === 'approve' ? approveBtn :
+        action === 'prod-approve' ? prodApproveBtn :
+        action === 'prod-reject' ? prodRejectBtn :
+        action === 'reject' ? rejectBtn :
+        closeBtn;
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/workflows/' + encodeURIComponent(wid) + '/' + action, { method: 'POST' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.ok === false) {
+          throw new Error(data.error || ('HTTP ' + res.status));
+        }
+        modal.close();
+        await refresh();
+      } catch (e) {
+        showError(action + ' failed for ' + wid + ': ' + (e.message || e));
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // ─── Live stream (v2) ───────────────────────────────────────────────
+    const streamPane = document.getElementById('stream-pane');
+    const streamEvents = document.getElementById('stream-events');
+    const streamStatus = document.getElementById('stream-status');
+    const streamStatusText = document.getElementById('stream-status-text');
+    const streamPauseBtn = document.getElementById('stream-pause-btn');
+    const streamClearBtn = document.getElementById('stream-clear-btn');
+
+    let activeStream = null;       // EventSource or null
+    let streamWorkflowId = null;   // workflow ID we're tailing
+    let autoScroll = true;
+
+    function setStreamStatus(state, label) {
+      streamStatus.className = 'stream-status ' + state;
+      streamStatusText.textContent = label;
+    }
+
+    function fmtKind(ev) {
+      // Try to be specific: assistant text vs tool_use vs tool_result.
+      const p = ev.payload;
+      if (p && typeof p === 'object') {
+        const msg = p.message || {};
+        const content = Array.isArray(msg.content) ? msg.content : [];
+        if (content.length === 1) {
+          const t = content[0]?.type;
+          if (t === 'tool_use') return 'tool_use';
+          if (t === 'tool_result') return 'tool_result';
+          if (t === 'text') return ev.kind || 'text';
+        }
+      }
+      return ev.kind || 'event';
+    }
+
+    function renderEventBody(ev) {
+      const p = ev.payload;
+      if (!p || typeof p !== 'object') return escapeHtml(JSON.stringify(p ?? ev.payload));
+      const msg = p.message || {};
+      const content = Array.isArray(msg.content) ? msg.content : [];
+      const parts = [];
+      for (const c of content) {
+        if (c.type === 'text' && typeof c.text === 'string') {
+          parts.push(escapeHtml(c.text));
+        } else if (c.type === 'tool_use') {
+          const name = escapeHtml(c.name || '?');
+          const input = c.input ? JSON.stringify(c.input).slice(0, 240) : '';
+          parts.push('<span class="tool-name">' + name + '</span> <span class="tool-input">' + escapeHtml(input) + '</span>');
+        } else if (c.type === 'tool_result') {
+          const text = typeof c.content === 'string' ? c.content : JSON.stringify(c.content || '').slice(0, 240);
+          parts.push(escapeHtml(text));
+        } else {
+          parts.push(escapeHtml(c.type || 'unknown'));
+        }
+      }
+      // Fallback when there's no message.content (e.g. system events)
+      if (parts.length === 0) {
+        if (p.subtype) parts.push(escapeHtml(p.subtype));
+        if (typeof p.total_cost_usd === 'number') parts.push('cost=$' + p.total_cost_usd.toFixed(4));
+        if (parts.length === 0) parts.push(escapeHtml(JSON.stringify(p).slice(0, 200)));
+      }
+      return parts.join('<br>');
+    }
+
+    function appendEvent(ev) {
+      const kind = fmtKind(ev);
+      const ts = new Date(ev.ts).toLocaleTimeString();
+      const body = renderEventBody(ev);
+      const div = document.createElement('div');
+      div.className = 'stream-event kind-' + kind.replace(/[^a-z0-9_]/gi, '_');
+      div.innerHTML =
+        '<span class="ts">' + escapeHtml(ts) + '</span>' +
+        '<span class="kind">' + escapeHtml(kind) + '</span>' +
+        '<span class="body">' + body + '</span>';
+      streamEvents.appendChild(div);
+      // Cap DOM size — keep last 1000 nodes; oldest scroll out as elements
+      while (streamEvents.children.length > 1000) {
+        streamEvents.removeChild(streamEvents.firstChild);
+      }
+      if (autoScroll) {
+        streamEvents.scrollTop = streamEvents.scrollHeight;
+      }
+    }
+
+    function openStreamFor(workflowId, isLiveCandidate) {
+      closeStream();
+      streamWorkflowId = workflowId;
+      streamEvents.innerHTML = '';
+      if (!isLiveCandidate) {
+        streamPane.classList.add('hidden');
+        return;
+      }
+      streamPane.classList.remove('hidden');
+      streamEvents.innerHTML = '<div class="stream-empty">Connecting…</div>';
+      setStreamStatus('disconnected', 'connecting');
+
+      const url = '/api/workflows/' + encodeURIComponent(workflowId) + '/stream';
+      const es = new EventSource(url);
+      activeStream = es;
+
+      es.addEventListener('forge-event', (e) => {
+        if (streamEvents.querySelector('.stream-empty')) streamEvents.innerHTML = '';
+        try {
+          appendEvent(JSON.parse(e.data));
+        } catch (_) {
+          // ignore malformed
+        }
+      });
+      es.addEventListener('snapshot-end', (e) => {
+        try {
+          const meta = JSON.parse(e.data);
+          if (meta.replayed === 0 && streamEvents.querySelector('.stream-empty')) {
+            streamEvents.innerHTML = '<div class="stream-empty">No events yet — waiting for activity output…</div>';
+          }
+        } catch (_) {}
+        setStreamStatus('live', 'live');
+      });
+      es.addEventListener('heartbeat', () => {
+        // Status is already 'live'; heartbeat just confirms.
+      });
+      es.onerror = () => {
+        // EventSource auto-reconnects; reflect that in the UI.
+        setStreamStatus('disconnected', 'reconnecting…');
+      };
+      es.onopen = () => {
+        setStreamStatus('live', 'live');
+      };
+    }
+
+    function closeStream() {
+      if (activeStream) {
+        activeStream.close();
+        activeStream = null;
+      }
+      streamWorkflowId = null;
+      setStreamStatus('disconnected', 'disconnected');
+    }
+
+    streamPauseBtn.addEventListener('click', () => {
+      autoScroll = !autoScroll;
+      streamPauseBtn.textContent = autoScroll ? 'Pause auto-scroll' : 'Resume auto-scroll';
+      streamPauseBtn.classList.toggle('active', !autoScroll);
+      setStreamStatus(autoScroll ? 'live' : 'paused', autoScroll ? 'live' : 'paused');
+    });
+    streamClearBtn.addEventListener('click', () => {
+      streamEvents.innerHTML = '';
+    });
+
+    // Tear down stream when the modal closes.
+    modal.addEventListener('close', () => {
+      closeStream();
+    });
+
+    // ─── Wire-up ────────────────────────────────────────────────────────
+
+    document.addEventListener('click', (ev) => {
+      // Inline anchors / buttons inside a card opt out of the modal-open
+      // behavior with `data-no-modal="1"`. The browser still handles the
+      // anchor's native action (download for the transcript-export
+      // button); we just suppress the click bubbling up to card-open.
+      const noModal = ev.target.closest('[data-no-modal="1"]');
+      if (noModal) return;
+      const card = ev.target.closest('.card[data-wid]');
+      if (card) {
+        openWorkflow(card.getAttribute('data-wid'));
+      }
+    });
+    approveBtn.addEventListener('click', () => performAction('approve'));
+    prodApproveBtn.addEventListener('click', () => {
+      if (!confirm('Approve prod deploy? This will push to production.')) return;
+      performAction('prod-approve');
+    });
+    prodRejectBtn.addEventListener('click', () => {
+      if (!confirm('Skip prod deploy? Workflow will end with dev only.')) return;
+      performAction('prod-reject');
+    });
+    rejectBtn.addEventListener('click', () => {
+      if (!confirm('Reject = cancel this workflow gracefully. Continue?')) return;
+      performAction('reject');
+    });
+    closeBtn.addEventListener('click', () => {
+      if (!confirm('Close = cancel this workflow gracefully. Continue?')) return;
+      performAction('close');
+    });
+
+    refresh();
+    setInterval(refresh, 10000);
+  </script>
+</body>
+</html>

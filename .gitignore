@@ -1,0 +1,67 @@
+# Orchestrator runtime state (keep jobs/ committed)
+/.claude/claudeclaw/logs/
+/.claude/claudeclaw/tasks/
+/.claude/claudeclaw/state.json
+/.claude/claudeclaw/session.json
+/.claude/claudeclaw/session.lock
+/.claude/claudeclaw/whisper/
+/.claude/claudeclaw/daemon.pid
+/.claude/statusline.cjs
+node_modules/
+.codemachine/
+
+# Cursor/IDE local state
+.cursor/
+.vscode/
+
+# macOS noise
+.DS_Store
+
+# Local env files (we prefer AWS Secrets Manager / AppConfig)
+.env
+.env.*
+
+# Content site credentials (wp app passwords — never commit)
+config/content-sites.json
+
+# GitHub token file (use env var GITHUB_TOKEN instead)
+.github-token
+
+# MCP server secrets — sourced by scripts/launch_nexus.sh; DK populates
+# the live values locally. .mcp-secrets.env.example is committed with
+# placeholders only; .mcp-secrets.env is the real-values copy and must
+# never be committed.
+.mcp-secrets.env
+
+# Entity runtime state (logs, tasks, session, pid — never commit)
+entities/*/.claude/claudeclaw/logs/
+entities/*/.claude/claudeclaw/tasks/
+entities/*/.claude/claudeclaw/state.json
+entities/*/.claude/claudeclaw/session.json
+entities/*/.claude/claudeclaw/session.lock
+entities/*/.claude/claudeclaw/whisper/
+entities/*/.claude/claudeclaw/daemon.pid
+entities/*/.claude/settings.json
+entities/*/.claude/statusline.cjs
+entities/*/CLAUDE.md
+
+# Orchestrator runtime state
+.claude/claudeclaw/logs/
+.claude/claudeclaw/tasks/
+.claude/claudeclaw/state.json
+.claude/claudeclaw/session.json
+.claude/claudeclaw/session.lock
+.claude/claudeclaw/whisper/
+.claude/claudeclaw/daemon.pid
+.claude/statusline.cjs
+
+# Local agent scratchpads (keep docs in-repo instead)
+AGENTS.md
+
+# Agent worktrees and external project workspaces (runtime-only, never commit)
+.claude/worktrees/
+workspace/
+
+# Forge follow-up task queue — operator-edited per host, not shared.
+# Empty `[]` initial state is created on first read by lib/pending-queue.
+data/forge-pending-queue.json

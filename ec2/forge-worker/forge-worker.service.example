@@ -1,0 +1,70 @@
+# forge-worker.service.example — TEMPLATE
+#
+# The actual forge-worker.service on the EC2 host is not checked into this
+# repo; it was hand-rolled during the original deploy and edits there
+# happen out-of-band. This file is the canonical reference for the
+# After=/Requires= wiring and the post-prestart-cutover unit shape.
+# Diff it against /etc/systemd/system/forge-worker.service on the host
+# and align it.
+#
+# === Cutover note (post forge-secrets.service rollout) ===
+#
+# The pre-existing /usr/local/sbin/forge-worker-prestart script pulled a
+# single `nexus/forge-worker` SM JSON blob and overwrote /run/forge-worker.env
+# AFTER forge-secrets.service had populated it. That fought with the
+# per-key SM model and is no longer used. Five non-secret config vars
+# that used to come from the prestart now live as Environment= directives
+# in the [Service] section. Two TLS_*_PATH overrides also live here
+# pointing at /opt/nexus/core/certs/ (the canonical mTLS material) until
+# the SM secrets /forge-worker/prod/TEMPORAL_TLS_{CERT,KEY} are
+# reconciled to match the same content; see forge-secrets-fetch.sh for
+# the (currently-unused) tmpfs cert file paths under /run/forge-worker/.
+
+[Unit]
+Description=Forge Pipeline Worker (Temporal worker for forge-pipeline queue)
+After=network.target forge-secrets.service
+# Hard dep on forge-secrets.service — see forge-console.service for the
+# rationale. /run/forge-worker.env must exist before the worker process
+# starts.
+Requires=forge-secrets.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/nexus/core/pipeline-worker
+
+# Non-secret runtime configuration. Previously injected by
+# /usr/local/sbin/forge-worker-prestart from a single SM JSON blob
+# that overwrote /run/forge-worker.env. Now declared statically here:
+# they are not secrets and putting them in SM costs API calls + IAM
+# scope without security benefit. TLS_*_PATH points at the canonical
+# mTLS material from initial deploy; see the cutover note above.
+Environment=TEMPORAL_NAMESPACE=[temporal-namespace]
+Environment=TEMPORAL_ADDRESS=[temporal-namespace].tmprl.cloud:7233
+Environment=AWS_REGION=us-west-2
+Environment=LINEAR_TEAM_ID=[linear-team-id]
+Environment=FORGE_CONSOLE_URL=http://127.0.0.1:4640
+Environment=TEMPORAL_TLS_CERT_PATH=/opt/nexus/core/certs/client.pem
+Environment=TEMPORAL_TLS_KEY_PATH=/opt/nexus/core/certs/client.key
+
+# Worker bootstrap config that the worker process expects in env. Kept
+# alongside the rest of the static config for visibility.
+Environment=NEXUS_CORE_PATH=/opt/nexus/core
+Environment=FORGE_WORKTREE_BASE=/tmp/forge-worktrees
+Environment=PATH=/root/.local/bin:/usr/local/bin:/usr/bin:/bin
+
+# Secrets from AWS Secrets Manager via forge-secrets.service. Declared
+# AFTER the static Environment= block so SM-sourced secrets win for any
+# key the operator deliberately moves to SM. forge-secrets-fetch.sh does
+# NOT emit TEMPORAL_TLS_*_PATH; the static values above are authoritative.
+EnvironmentFile=/run/forge-worker.env
+
+ExecStart=/usr/bin/node /opt/nexus/core/pipeline-worker/dist/worker.js
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=forge-worker
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>ai.[company].claude-creds-pull</string>
+
+    <!--
+        Mac-side launchd agent that pulls Claude Code OAuth credentials
+        from the EC2 forge-worker (canonical source) into the Mac Keychain.
+
+        Install:
+          cp scripts/ai.[company].claude-creds-pull.plist ~/Library/LaunchAgents/
+          launchctl load ~/Library/LaunchAgents/ai.[company].claude-creds-pull.plist
+
+        Uninstall:
+          launchctl unload ~/Library/LaunchAgents/ai.[company].claude-creds-pull.plist
+          rm ~/Library/LaunchAgents/ai.[company].claude-creds-pull.plist
+
+        See scripts/pull-claude-creds-from-ec2.sh for what runs and why.
+    -->
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/<user>/Nexus/core/scripts/pull-claude-creds-from-ec2.sh</string>
+    </array>
+
+    <!-- Fire on load (login, manual reload). launchd coalesces missed
+         StartInterval firings, so a single firing happens within seconds
+         of system wake if a scheduled run was missed during sleep. -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- 30 minutes. EC2 refreshes at 4h-to-expiry; with this cadence,
+         the Mac is at most 30 min behind EC2 while awake. -->
+    <key>StartInterval</key>
+    <integer>1800</integer>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/claude-creds-pull.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/claude-creds-pull.log</string>
+</dict>
+</plist>

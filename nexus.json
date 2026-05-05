@@ -1,0 +1,129 @@
+{
+  "entities": {
+    "orchestrator": {
+      "path": "/Users/<user>/Nexus/core",
+      "port": 4632,
+      "telegram": true,
+      "emoji": "⚡",
+      "description": "Operational orchestrator and primary interface to the human operator",
+      "model": "claude-sonnet-4-6"
+    },
+    "advisor": {
+      "path": "/Users/<user>/Nexus/core/entities/advisor",
+      "port": 4633,
+      "emoji": "🐆",
+      "description": "Spirit guide — strategic advisor, deep reasoner, grounded counsel",
+      "autostart": true,
+      "notifyChannel": "slack"
+    },
+    "monitor": {
+      "path": "/Users/<user>/Nexus/core/entities/monitor",
+      "port": 4634,
+      "emoji": "👁️",
+      "description": "Lightweight monitor — heartbeats, health checks, message scanning (Haiku)",
+      "autostart": true
+    },
+    "engineer": {
+      "path": "/Users/<user>/Nexus/core/entities/engineer",
+      "port": 4635,
+      "emoji": "🔥",
+      "description": "Master engineer — complex coding, architecture, security audits (Opus)",
+      "autostart": true,
+      "notifyChannel": "slack"
+    },
+    "writer": {
+      "path": "/Users/<user>/Nexus/core/entities/writer",
+      "port": 4636,
+      "emoji": "✍️",
+      "description": "Content writer — SEO articles, affiliate content, topical authority building (Sonnet)",
+      "model": "claude-sonnet-4-6",
+      "autostart": true,
+      "notifyChannel": "telegram"
+    }
+  },
+  "orchestrator": "orchestrator",
+  "corePath": "/Users/<user>/Nexus/core",
+  "timezone": "America/New_York",
+  "forge": {
+    "repos": {
+      "[target-repo-realtime]": {
+        "description": "Python 3.11 realtime trigger and messaging platform (uv, make, Elastic Beanstalk). Houses the trigger engine, attribution service, send-time bandit, gateway, template-service, and the customer event ingest path.",
+        "repoOwner": "[org]",
+        "repoName": "[target-repo-realtime]",
+        "defaultBranch": "main",
+        "taskQueue": "forge-pipeline",
+        "lintCommand": "make lint",
+        "testCommand": "make test-unit",
+        "smokeCommand": "curl -sf -m 10 http://realtime-platform-dev.[redacted-host]/health",
+        "deployDevCommand": "SKIP_ECR_PUSH=1 make eb-deploy-dev-tagged",
+        "deployProdCommand": "SKIP_ECR_PUSH=1 make eb-deploy-prod-tagged",
+        "devEnvironment": "[target-repo-realtime]-dev",
+        "prodEnvironment": "[target-repo-realtime]-prod",
+        "claudeMdPath": "templates/forge/[target-repo-realtime]-CLAUDE.md",
+        "agentsMdPath": "templates/forge/[target-repo-realtime]-AGENTS.md",
+        "tyCheckCommand": "make ty-check",
+        "fixCommand": "make fix",
+        "codeartifact": {
+          "domain": "agentic",
+          "domainOwner": "[aws-account-id]",
+          "region": "us-west-2",
+          "repository": "agentic-pypi"
+        }
+      },
+      "[target-repo-web]": {
+        "description": "TypeScript Vite + React frontend with an Express server (npm). Hosts the customer-facing dashboard, auth bouncer, and the /forge reverse proxy at server/forge-proxy.js. Renders auto-deploys on merge to main.",
+        "repoOwner": "[org]",
+        "repoName": "[target-repo-web]",
+        "defaultBranch": "main",
+        "taskQueue": "forge-pipeline",
+        "lintCommand": "npm run lint",
+        "lintDiffCommand": "npx eslint",
+        "lintDiffExtensions": [".ts", ".tsx", ".js", ".jsx", ".cjs", ".mjs"],
+        "testCommand": "npm test -- --watchAll=false",
+        "testDiffCommand": "npx jest --findRelatedTests",
+        "testDiffExtensions": [".ts", ".tsx"],
+        "smokeCommand": "npx tsc --noEmit",
+        "deployDevCommand": "echo 'no-op: [target-repo-web] auto-deploys on merge to main via Render'",
+        "deployProdCommand": "echo 'no-op: [target-repo-web] auto-deploys on merge to main via Render'",
+        "devEnvironment": "render-preview",
+        "prodEnvironment": "render-prod",
+        "claudeMdPath": "templates/forge/[target-repo-web]-CLAUDE.md",
+        "agentsMdPath": "templates/forge/[target-repo-web]-AGENTS.md",
+        "autoDeploy": true,
+        "codeartifact": {
+          "domain": "agentic",
+          "domainOwner": "[aws-account-id]",
+          "region": "us-west-2",
+          "repository": "agentic-pypi"
+        }
+      },
+      "[target-repo-api]": {
+        "description": "Python 3.11 Flask-RESTful B2B API server (uv, JWT/HS256 auth, Werkzeug 2.2.3). Single-file core in application.py serving auth, account, OAuth, and admin endpoints. Manual deploy via make deploy (no auto-deploy from Forge yet).",
+        "repoOwner": "[org]",
+        "repoName": "[target-repo-api]",
+        "defaultBranch": "main",
+        "taskQueue": "forge-pipeline",
+        "lintCommand": "uv run black --check . && uv run isort --check-only .",
+        "lintDiffCommand": "bash -c 'uv run black --check \"$@\" && uv run isort --check-only \"$@\"' --",
+        "lintDiffExtensions": [".py"],
+        "testCommand": "uv run pytest -m \"not integration and not manual\" -n auto",
+        "testDiffCommand": "bash -c 'uv run pytest -m \"not integration and not manual\" --no-cov -p no:cacheprovider \"$@\"' --",
+        "testDiffExtensions": [".py"],
+        "smokeCommand": "uv run pytest --collect-only -q",
+        "deployDevCommand": "make deploy",
+        "deployProdCommand": "make deploy",
+        "devEnvironment": "[target-repo-api]-dev",
+        "prodEnvironment": "[target-repo-api]-prod",
+        "claudeMdPath": "templates/forge/[target-repo-api]-CLAUDE.md",
+        "agentsMdPath": "templates/forge/[target-repo-api]-AGENTS.md",
+        "autoDeploy": true,
+        "codeartifact": {
+          "domain": "agentic",
+          "domainOwner": "[aws-account-id]",
+          "region": "us-west-2",
+          "repository": "agentic-pypi"
+        }
+      }
+    }
+  }
+}

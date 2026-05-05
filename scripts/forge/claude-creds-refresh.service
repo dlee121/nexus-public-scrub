@@ -1,0 +1,14 @@
+[Unit]
+Description=Refresh Claude Code OAuth credentials at /root/.claude/.credentials.json
+Documentation=https://github.com/[org]/Nexus
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/claude-creds-refresh.sh
+StandardOutput=journal
+StandardError=journal
+# Tight resource limits — this is curl + jq, nothing more.
+MemoryMax=128M
+CPUQuota=20%
